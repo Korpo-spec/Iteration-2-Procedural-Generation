@@ -50,7 +50,7 @@ public class ChunkLoader : MonoBehaviour
         
         _currentValue.y = (int) (pos.y);
         _currentValue.y = _currentValue.y.RoundOff();
-        //Debug.Log(_maxValue);
+        Debug.Log(_currentValue);
     }
 
     private void LoadInitChunk()
@@ -70,12 +70,26 @@ public class ChunkLoader : MonoBehaviour
 
     private void LoadChunkRow(int rowNum)
     {
-        
+        for (int i = _minValue.x; i < _maxValue.x; i++)
+        {
+            var g = Instantiate(chunk, new Vector3(i, 0, rowNum), Quaternion.identity);
+            Mesh mesh = g.GetComponent<MeshFilter>().mesh;
+            
+            terrainGenerator.GenerateTerrain(mesh, new Vector3(i,0,rowNum));
+            g.GetComponent<MeshCollider>().sharedMesh = mesh;
+        }
     }
 
     private void LoadChunkCol(int colNum)
     {
-        
+        for (int i = _minValue.y; i < _maxValue.y; i++)
+        {
+            var g = Instantiate(chunk, new Vector3(colNum, 0, i), Quaternion.identity);
+            Mesh mesh = g.GetComponent<MeshFilter>().mesh;
+            
+            terrainGenerator.GenerateTerrain(mesh, new Vector3(colNum,0,i));
+            g.GetComponent<MeshCollider>().sharedMesh = mesh;
+        }
     }
 
     
@@ -86,22 +100,30 @@ public class ChunkLoader : MonoBehaviour
         Vector3 pos = transform.position;
         if (pos.x < _currentValue.x -10)
         {
-            LoadChunkCol(_minValue.x-10);
+            LoadChunkRow(_minValue.x);
+            _minValue.x -= 10;
+            _currentValue.x -= 10;
         }
 
         if (pos.x > _currentValue.x +10)
         {
-            LoadChunkRow(_maxValue.x +10);
+            LoadChunkCol(_maxValue.x);
+            _maxValue.x += 10;
+            _currentValue.x += 10;
         }
         
         if (pos.y < _currentValue.y -10)
         {
-            LoadChunkCol(_minValue.y-10);
+            LoadChunkRow(_minValue.y);
+            _minValue.y -= 10;
+            _currentValue.y -= 10;
         }
 
         if (pos.y > _currentValue.y +10)
         {
-            LoadChunkRow(_maxValue.y);
+            LoadChunkCol(_maxValue.y);
+            _minValue.y += 10;
+            _currentValue.y += 10;
         }
     }
 }

@@ -297,7 +297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 946a8eb0f33ac4545b3d3ce1616b177e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  viewDistance: 20
+  viewDistance: 30
   chunk: {fileID: 7512413815334163844, guid: e14d567974fd42944a8c73861de40d54, type: 3}
   terrainGenerator: {fileID: 1470433132}
 --- !u!1 &705507993

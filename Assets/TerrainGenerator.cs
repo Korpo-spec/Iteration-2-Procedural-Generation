@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 public class TerrainGenerator : MonoBehaviour
 {
@@ -40,6 +42,12 @@ public class TerrainGenerator : MonoBehaviour
         
     }
 
+    public void GenerateTerrainAsync(Mesh mesh, Vector3 origin)
+    {
+        Thread generationThread = new Thread((() => GenerateTerrain(mesh, origin)));
+        generationThread.Start();
+    }
+
     public void GenerateTerrain(Mesh mesh, Vector3 origin)
     {
         MeshBuilder builder = new MeshBuilder();
@@ -62,9 +70,9 @@ public class TerrainGenerator : MonoBehaviour
                     float yValue =  quadSize.y * y;
                     yValue += quadSize.y * ((i/2 +i)%2);
                     
-                    
+                    Profiler.BeginSample("Noise");
                     pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue), yValue);
-                    
+                    Profiler.EndSample();
                 }
                 normal = Vector3.Cross(pos[1]- pos[2], pos[1]- pos[0]);
                 
