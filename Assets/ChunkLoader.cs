@@ -33,7 +33,7 @@ public class ChunkLoader : MonoBehaviour
         _minValue.x = (int)(pos.x - viewDistance);
         _minValue.x = _minValue.x.RoundOff();
         
-        _minValue.y = (int)(pos.y - viewDistance);
+        _minValue.y = (int)(pos.z - viewDistance);
         _minValue.y = _minValue.y.RoundOff();
         
         //Debug.Log(_minValue);
@@ -41,14 +41,14 @@ public class ChunkLoader : MonoBehaviour
         _maxValue.x = (int)(pos.x + viewDistance);
         _maxValue.x = _maxValue.x.RoundOff();
         
-        _maxValue.y = (int)(pos.y + viewDistance);
+        _maxValue.y = (int)(pos.z + viewDistance);
         _maxValue.y = _maxValue.y.RoundOff();
 
 
         _currentValue.x = (int) (pos.x);
         _currentValue.x = _currentValue.x.RoundOff();
         
-        _currentValue.y = (int) (pos.y);
+        _currentValue.y = (int) (pos.z);
         _currentValue.y = _currentValue.y.RoundOff();
         Debug.Log(_currentValue);
     }
@@ -70,7 +70,7 @@ public class ChunkLoader : MonoBehaviour
 
     private void LoadChunkRow(int rowNum)
     {
-        for (int i = _minValue.x; i < _maxValue.x; i++)
+        for (int i = _minValue.x; i <= _maxValue.x; i+= 10)
         {
             var g = Instantiate(chunk, new Vector3(i, 0, rowNum), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
@@ -82,7 +82,7 @@ public class ChunkLoader : MonoBehaviour
 
     private void LoadChunkCol(int colNum)
     {
-        for (int i = _minValue.y; i < _maxValue.y; i++)
+        for (int i = _minValue.y; i <= _maxValue.y; i+= 10)
         {
             var g = Instantiate(chunk, new Vector3(colNum, 0, i), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
@@ -112,14 +112,14 @@ public class ChunkLoader : MonoBehaviour
             _currentValue.x += 10;
         }
         
-        if (pos.y < _currentValue.y -10)
+        if (pos.z < _currentValue.y -10)
         {
             LoadChunkRow(_minValue.y);
             _minValue.y -= 10;
             _currentValue.y -= 10;
         }
 
-        if (pos.y > _currentValue.y +10)
+        if (pos.z > _currentValue.y +10)
         {
             LoadChunkCol(_maxValue.y);
             _minValue.y += 10;
