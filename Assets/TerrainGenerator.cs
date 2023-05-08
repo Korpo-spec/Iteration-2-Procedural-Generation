@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
+using UnityEngine.Android;
 using UnityEngine.Profiling;
 
 public class TerrainGenerator : MonoBehaviour
@@ -24,6 +25,10 @@ public class TerrainGenerator : MonoBehaviour
     // Start is called before the first frame update
     private void Awake()
     {
+        //TODO: create code to size quads nicely;
+        //quadSize.x -= (size.x % quadSize.x) / (size.x / quadSize.x);
+        //Debug.Log((size.x % quadSize.x) / (size.x / quadSize.x));
+        
         _triCount.x =(int) (size.x / quadSize.x);
         _triCount.y =(int) (size.y / quadSize.y);
     }
@@ -52,15 +57,17 @@ public class TerrainGenerator : MonoBehaviour
     {
         MeshBuilder builder = new MeshBuilder();
 
-        Vector3 normal = new Vector3(0, 1, 0);
-        Vector2 uv = new Vector2(0, 0);
+        Vector3[] normal = new Vector3[4];
+        Vector2[] uv = new Vector2[4];
+        Vector3[] pos = new Vector3[4];
         int[] vertex = new int[4];
-        for (int y = 0; y <= _triCount.y; y++)
+        Dictionary<Vector2, float> perlin = new Dictionary<Vector2, float>();
+        for (int y = 0; y < _triCount.y; y++)
         {
-            for (int x = 0; x <= _triCount.x; x++)
+            for (int x = 0; x < _triCount.x; x++)
             {
-
-                Vector3[] pos = new Vector3[4];
+                
+                
                 for (int i = 0; i < vertex.Length; i++)
                 {
                     float xValue =  quadSize.x * x;
@@ -69,21 +76,39 @@ public class TerrainGenerator : MonoBehaviour
                     
                     float yValue =  quadSize.y * y;
                     yValue += quadSize.y * ((i/2 +i)%2);
+
+                    uv[i] = new Vector2(xValue / size.x, yValue/size.y);
                     
                     Profiler.BeginSample("Noise");
-                    pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue), yValue);
+                    pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin), yValue);
+                    
                     Profiler.EndSample();
                 }
-                normal = Vector3.Cross(pos[1]- pos[2], pos[1]- pos[0]);
+
+                int mod = 0;
+                for (int i = 0; i < 6; i++)
+                {
+                    
+                    var p = Vector3.Cross(pos[1+mod] - pos[0+mod], pos[2+mod] - pos[0+mod]);
+                    normal[0+mod] += p;
+                    normal[1+mod] += p;
+                    normal[2+mod] += p;
+                    if (i == 3)
+                    {
+                        mod++;
+                    }
+                }
                 
-                vertex[0] = builder.AddVertex(pos[0], normal, Vector2.zero);
-                vertex[1] = builder.AddVertex(pos[1], normal, new Vector2(0,1));
+                //normal = Vector3.Cross(pos[1]- pos[2], pos[1]- pos[0]).normalized;
+                
+                vertex[0] = builder.AddVertex(pos[0], normal[0].normalized, uv[0]);
+                vertex[1] = builder.AddVertex(pos[1], normal[1].normalized, uv[1]);
                 
                 
-                normal = Vector3.Cross(pos[3]- pos[0],pos[3]- pos[2] );
+                //normal = Vector3.Cross(pos[3]- pos[0],pos[3]- pos[2] ).normalized;
                 
-                vertex[2] = builder.AddVertex(pos[2], normal, new Vector2(1,1));
-                vertex[3] = builder.AddVertex(pos[3], normal, new Vector2(1,0));
+                vertex[2] = builder.AddVertex(pos[2], normal[2].normalized, uv[2]);
+                vertex[3] = builder.AddVertex(pos[3], normal[3].normalized, uv[3]);
                 /*
                 Vector3 pos = new Vector3(xValue, GetPerlinNoiseValue(xValue, yValue), yValue);
                 vertex[0] = builder.AddVertex(pos, normal, uv);
@@ -107,12 +132,23 @@ public class TerrainGenerator : MonoBehaviour
 
         
         builder.Build(mesh);
+        
         //.sharedMesh = mesh;
         
     }
 
     private float GetPerlinNoiseValue(float x, float y)
     {
+        return Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) * noiseValueMul;
+    }
+    
+    private float GetPerlinNoiseValue(float x, float y, Dictionary<Vector2, float> perlin)
+    {
+        if (perlin.TryGetValue(new Vector2(x,y), out float perlinvalue))
+        {
+            return perlinvalue;
+        }
+
         return Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) * noiseValueMul;
     }
 }
