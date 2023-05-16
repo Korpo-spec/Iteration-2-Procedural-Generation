@@ -16,6 +16,7 @@ public class TerrainGenerator : MonoBehaviour
 
     [SerializeField] private float noiseValueMul;
     [SerializeField] private float noiseSizeMul;
+    [SerializeField] private Gradient gradient;
 
     
     private int perlinMod = 100;
@@ -53,7 +54,7 @@ public class TerrainGenerator : MonoBehaviour
         generationThread.Start();
     }
 
-    public void GenerateTerrain(Mesh mesh, Vector3 origin)
+    public Texture2D GenerateTerrain(Mesh mesh, Vector3 origin)
     {
         MeshBuilder builder = new MeshBuilder();
 
@@ -62,6 +63,9 @@ public class TerrainGenerator : MonoBehaviour
         Vector3[] pos = new Vector3[4];
         int[] vertex = new int[4];
         Dictionary<Vector2, float> perlin = new Dictionary<Vector2, float>();
+
+        Texture2D chunktexture = new Texture2D(_triCount.x, _triCount.y);
+
         for (int y = 0; y < _triCount.y; y++)
         {
             for (int x = 0; x < _triCount.x; x++)
@@ -81,10 +85,10 @@ public class TerrainGenerator : MonoBehaviour
                     
                     Profiler.BeginSample("Noise");
                     pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin), yValue);
-                    
+                    chunktexture.SetPixel(x, y, gradient.Evaluate(GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin)/noiseValueMul));
                     Profiler.EndSample();
                 }
-
+                
                 int mod = 0;
                 for (int i = 0; i < 6; i++)
                 {
@@ -132,9 +136,14 @@ public class TerrainGenerator : MonoBehaviour
 
         
         builder.Build(mesh);
-        
+        mesh.RecalculateNormals();
+        Debug.Log(chunktexture.height);
+        Debug.Log(chunktexture.GetPixel(10,10));
+        chunktexture.wrapMode = TextureWrapMode.Mirror;
+        chunktexture.Apply();
+        return chunktexture;
         //.sharedMesh = mesh;
-        
+
     }
 
     private float GetPerlinNoiseValue(float x, float y)
@@ -151,4 +160,6 @@ public class TerrainGenerator : MonoBehaviour
 
         return Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) * noiseValueMul;
     }
+    
+    
 }

@@ -62,8 +62,12 @@ public class ChunkLoader : MonoBehaviour
                 var g = Instantiate(chunk, new Vector3(j, 0, i), Quaternion.identity);
                 Mesh mesh = g.GetComponent<MeshFilter>().mesh;
                 
-                terrainGenerator.GenerateTerrain(mesh, new Vector3(j,0,i));
+                Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(j,0,i));
                 g.GetComponent<MeshCollider>().sharedMesh = mesh;
+                
+                g.GetComponent<MeshRenderer>().material.mainTexture = tex;
+                
+                
             }
         }
     }
@@ -75,8 +79,9 @@ public class ChunkLoader : MonoBehaviour
             var g = Instantiate(chunk, new Vector3(i, 0, rowNum), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
             
-            terrainGenerator.GenerateTerrain(mesh, new Vector3(i,0,rowNum));
+            Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(i,0,rowNum));
             g.GetComponent<MeshCollider>().sharedMesh = mesh;
+            g.GetComponent<MeshRenderer>().material.mainTexture = tex;
         }
     }
 
@@ -87,8 +92,9 @@ public class ChunkLoader : MonoBehaviour
             var g = Instantiate(chunk, new Vector3(colNum, 0, i), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
             
-            terrainGenerator.GenerateTerrain(mesh, new Vector3(colNum,0,i));
+            Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(colNum,0,i));
             g.GetComponent<MeshCollider>().sharedMesh = mesh;
+            g.GetComponent<MeshRenderer>().material.mainTexture = tex;
         }
     }
 
