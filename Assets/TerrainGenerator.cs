@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+
 using UnityEngine;
 using UnityEngine.Android;
 using UnityEngine.Profiling;
@@ -18,7 +19,7 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField] private float noiseSizeMul;
     [SerializeField] private Gradient gradient;
 
-    
+    [SerializeField] private List<PerlinData> perlinLayers;
     private int perlinMod = 100;
     private Vector2Int _triCount;
     
@@ -53,6 +54,8 @@ public class TerrainGenerator : MonoBehaviour
         Thread generationThread = new Thread((() => GenerateTerrain(mesh, origin)));
         generationThread.Start();
     }
+
+    //[SerializeField] private Texture2D previewTex = new Texture2D(1024, 1024);
 
     public Texture2D GenerateTerrain(Mesh mesh, Vector3 origin)
     {
@@ -137,8 +140,8 @@ public class TerrainGenerator : MonoBehaviour
         
         builder.Build(mesh);
         mesh.RecalculateNormals();
-        Debug.Log(chunktexture.height);
-        Debug.Log(chunktexture.GetPixel(10,10));
+        //Debug.Log(chunktexture.height);
+        //Debug.Log(chunktexture.GetPixel(10,10));
         chunktexture.wrapMode = TextureWrapMode.Mirror;
         chunktexture.Apply();
         return chunktexture;
@@ -146,9 +149,20 @@ public class TerrainGenerator : MonoBehaviour
 
     }
 
-    private float GetPerlinNoiseValue(float x, float y)
+    private float GetPerlinNoiseValue(float x, float y, float noiseSizeMul, float noiseValueMul, float perlinMod, float thresholdValue, out bool threshold)
     {
-        return Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) * noiseValueMul;
+        float result = Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) ;
+        if (thresholdValue <= result )
+        {
+            threshold = true;
+            return result;
+        }
+        threshold = false;
+        //Debug.Log(result);
+        return 1f-(Mathf.Pow((result-0.5f)*2f , 2)*4f);
+        
+        
+        
     }
     
     private float GetPerlinNoiseValue(float x, float y, Dictionary<Vector2, float> perlin)
@@ -158,7 +172,37 @@ public class TerrainGenerator : MonoBehaviour
             return perlinvalue;
         }
 
-        return Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) * noiseValueMul;
+        float result = 1;
+        int originalMod = perlinMod;
+        foreach (var perlinData in perlinLayers)
+        {
+            float perlinResult = GetPerlinNoiseValue(x, y, perlinData.noiseSizeMul, perlinData.noiseValueMul, perlinMod,
+                perlinData.thresholdValue, out bool threshold);
+            
+            if (threshold )
+            {
+                float weightLeftOver = 1 - perlinData.weight;
+                result *= weightLeftOver;
+                result += perlinData.weight * perlinResult * perlinData.noiseValueMul;
+            }
+            else
+            {
+                //Debug.Log(perlinResult);
+                float newWeight = perlinData.weight * Mathf.Lerp(0f,1f,  perlinResult);
+                //Debug.Log(newWeight);
+                float weightLeftOver = 1 - newWeight;
+                result *= weightLeftOver;
+                result += newWeight * perlinResult * (perlinData.noiseValueMul/2);
+                //Mathf.Lerp(0f, perlinResult * noiseValueMul, perlinResult);
+            }
+            
+            perlinMod /= 2;
+        }
+
+        perlinMod = originalMod;
+        perlin.Add(new Vector2(x,y), result);
+        
+        return result;
     }
     
     

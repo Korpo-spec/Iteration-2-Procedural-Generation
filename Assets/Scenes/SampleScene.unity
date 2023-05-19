@@ -185,7 +185,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 517013342}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5.41, y: 14.86, z: 2.12}
+  m_LocalPosition: {x: 5.41, y: 30.8, z: 2.12}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -297,7 +297,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 946a8eb0f33ac4545b3d3ce1616b177e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  viewDistance: 100
+  viewDistance: 250
   chunk: {fileID: 7512413815334163844, guid: e14d567974fd42944a8c73861de40d54, type: 3}
   terrainGenerator: {fileID: 1470433132}
 --- !u!1 &705507993
@@ -560,7 +560,7 @@ MonoBehaviour:
   size: {x: 10, y: 10}
   quadSize: {x: 0.5, y: 0.5}
   noiseValueMul: 20
-  noiseSizeMul: 0.0255
+  noiseSizeMul: 0.00255
   gradient:
     serializedVersion: 2
     key0: {r: 0, g: 0.24600458, b: 1, a: 1}
@@ -590,6 +590,17 @@ MonoBehaviour:
     m_Mode: 0
     m_NumColorKeys: 6
     m_NumAlphaKeys: 2
+  perlinLayers:
+  - layerName: Base
+    weight: 1
+    noiseValueMul: 20
+    noiseSizeMul: 0.00855
+    thresholdValue: 0
+  - layerName: Mountain
+    weight: 0.8
+    noiseValueMul: 100
+    noiseSizeMul: 0.002
+    thresholdValue: 0.5
 --- !u!23 &1470433134
 MeshRenderer:
   m_ObjectHideFlags: 0
