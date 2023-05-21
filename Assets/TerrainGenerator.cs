@@ -149,17 +149,28 @@ public class TerrainGenerator : MonoBehaviour
 
     }
 
-    private float GetPerlinNoiseValue(float x, float y, float noiseSizeMul, float noiseValueMul, float perlinMod, float thresholdValue, out bool threshold)
+    private float GetPerlinNoiseValue(float x, float y, float noiseSizeMul, List<PerlinData> subMaps, float perlinMod, float thresholdValue, out bool threshold)
     {
         float result = Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) ;
         if (thresholdValue <= result )
         {
             threshold = true;
+            foreach (var map in subMaps)
+            {
+                result += GetPerlinNoiseValue(x, y, map.noiseSizeMul, map.subMaps, perlinMod * 2.5f, map.thresholdValue, out _)*map.noiseValueMul*
+                          Mathf.Max(result-thresholdValue, 0f);
+            }
             return result;
+            if (thresholdValue == 0)
+            {
+                return result;
+            }
+            return (result-thresholdValue)*(1/(1f-thresholdValue))+thresholdValue;
+            
         }
         threshold = false;
         //Debug.Log(result);
-        return 1f-(Mathf.Pow((result-0.5f)*2f , 2)*4f);
+        return 1f-(Mathf.Pow((result-thresholdValue)* (1/(1f-thresholdValue)) , 2)*15f);
         
         
         
@@ -176,7 +187,7 @@ public class TerrainGenerator : MonoBehaviour
         int originalMod = perlinMod;
         foreach (var perlinData in perlinLayers)
         {
-            float perlinResult = GetPerlinNoiseValue(x, y, perlinData.noiseSizeMul, perlinData.noiseValueMul, perlinMod,
+            float perlinResult = GetPerlinNoiseValue(x, y, perlinData.noiseSizeMul, perlinData.subMaps, perlinMod,
                 perlinData.thresholdValue, out bool threshold);
             
             if (threshold )
@@ -192,7 +203,7 @@ public class TerrainGenerator : MonoBehaviour
                 //Debug.Log(newWeight);
                 float weightLeftOver = 1 - newWeight;
                 result *= weightLeftOver;
-                result += newWeight * perlinResult * (perlinData.noiseValueMul/2);
+                result += newWeight * perlinResult * (perlinData.noiseValueMul/(1/perlinData.thresholdValue));
                 //Mathf.Lerp(0f, perlinResult * noiseValueMul, perlinResult);
             }
             
