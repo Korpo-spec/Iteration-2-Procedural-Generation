@@ -1,11 +1,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
-
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Android;
 using UnityEngine.Profiling;
+using Random = UnityEngine.Random;
 
 public class TerrainGenerator : MonoBehaviour
 {
@@ -18,12 +20,19 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField] private float noiseValueMul;
     [SerializeField] private float noiseSizeMul;
     [SerializeField] private Gradient gradient;
+    [SerializeField] private Texture2D[] textures;
+    [SerializeField] private Texture2D[] normalMaps;
+    [SerializeField] private Texture2DArray texture2DArray;
+    [SerializeField] private Texture2DArray texture2DArrayNormals;
+    [SerializeField] private ComputeShader textureShader;
 
     [SerializeField] private List<PerlinData> perlinLayers;
+    
     private int perlinMod = 100;
     private Vector2Int _triCount;
-    
+    [SerializeField]private Texture2D chunkPerlinTexture;
     private MeshCollider _collider;
+    private int mainkernel;
     // Start is called before the first frame update
     private void Awake()
     {
@@ -33,41 +42,127 @@ public class TerrainGenerator : MonoBehaviour
         
         _triCount.x =(int) (size.x / quadSize.x);
         _triCount.y =(int) (size.y / quadSize.y);
+        
+        chunkPerlinTexture = new Texture2D(_triCount.x, _triCount.y);
+        builders = new Queue<MeshBuilder>();
+        mainkernel = textureShader.FindKernel("CSMain");
     }
 
     void Start()
     {
         _terrain = GetComponent<MeshFilter>().mesh;
         _collider = GetComponent<MeshCollider>();
-        
+        foreach (var VARIABLE in gradient.colorKeys)
+        {
+            Debug.Log(VARIABLE.time);
+        }
         //GenerateTerrain(_terrain, Vector3.zero);
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnValidate()
     {
+        var pasttextures = textures;
+        //var pastNormals = normalMaps;
+        textures = new Texture2D[gradient.colorKeys.Length];
+        //normalMaps = new Texture2D[gradient.colorKeys.Length];
+        texture2DArray =
+            new Texture2DArray(2048, 2048, gradient.colorKeys.Length, TextureFormat.ARGB32, false);
+        //texture2DArrayNormals = new Texture2DArray(2048, 2048, gradient.colorKeys.Length, TextureFormat.ARGB32, false);
+        for (int i = 0; i < gradient.colorKeys.Length; i++)
+        {
+            textures[i] = pasttextures.Length > i?pasttextures[i] : null;
+            //normalMaps[i] = pastNormals.Length > i?pastNormals[i] : null;
+            
+            texture2DArray.SetPixels(textures[i]?.GetPixels(0), i);
+            //texture2DArrayNormals.SetPixels(normalMaps[i]?.GetPixels(0), i);
+        }
+        
+        //texture2DArray.SetPixelData(textures[0].GetPixelData<Color>(0),0,0);
+        texture2DArray.Apply();
+        //texture2DArrayNormals.Apply();
         
     }
 
-    public void GenerateTerrainAsync(Mesh mesh, Vector3 origin)
+    
+    // Update is called once per frame
+    void Update()
     {
-        Thread generationThread = new Thread((() => GenerateTerrain(mesh, origin)));
-        generationThread.Start();
+        lock (builders)
+        {
+            for (int i = 0; i < builders.Count; i++)
+            {
+
+                MeshBuilder builder = builders.Dequeue();
+                builder?.Build();
+                
+                RenderTexture outputTexture = new RenderTexture(256, 256,0);
+                outputTexture.enableRandomWrite = true;
+                outputTexture.format = RenderTextureFormat.RGB111110Float;
+                outputTexture.Create();
+                builder.g.GetComponent<MeshRenderer>().material.mainTexture = outputTexture;
+                textureShader.SetTexture(mainkernel,"outputTexture",outputTexture);
+                chunkPerlinTexture = new Texture2D(_triCount.x, _triCount.y);
+                chunkPerlinTexture.SetPixels(builder?.pixels, 0);
+                chunkPerlinTexture.Apply();
+                textureShader.SetTexture(mainkernel, "inputTexture", chunkPerlinTexture);
+                
+                textureShader.SetInt("inputTextureSizeX", _triCount.x);
+                textureShader.SetInt("inputTextureSizeY", _triCount.y);
+                Random.InitState(123);
+                Instantiate(perlinLayers[0].gameObjects[SeededRandom(0, perlinLayers[0].gameObjects.Count, (int)(builder.g.transform.position.x * builder.g.transform.position.z))], new Vector3(builder.g.transform.position.x, Random.Range(20, 50), builder.g.transform.position.z),
+                    Quaternion.identity);
+                
+                textureShader.SetTexture(mainkernel, "inputTextures", texture2DArray);
+                
+                float[] timestamps = gradient.colorKeys.Select(e => e.time).ToArray();
+                ComputeBuffer floatBuffer = new ComputeBuffer(timestamps.Length, sizeof(float));
+                floatBuffer.SetData(timestamps);
+                textureShader.SetBuffer(mainkernel, "timeStamps",floatBuffer);
+                
+                textureShader.Dispatch(mainkernel,1,1,1);
+                
+                floatBuffer.Release();
+                builder.g.GetComponent<MeshCollider>().sharedMesh = builder.mesh;
+            }
+        }
+        
     }
 
+    private float SeededRandom(float minValue, float maxvalue, int seed)
+    {
+        Random.InitState(seed);
+        return Random.Range(minValue, maxvalue);
+    }
+    
+    private int SeededRandom(int minValue, int maxvalue, int seed)
+    {
+        Random.InitState(seed);
+        return Random.Range(minValue, maxvalue);
+    }
+
+    public void GenerateTerrainAsync(Mesh mesh, Vector3 origin, GameObject g)
+    {
+
+        Task generationTask = new Task(() => GenerateTerrain(mesh, origin, g));
+        generationTask.Start();
+        //Thread generationThread = new Thread((() => GenerateTerrain(mesh, origin, g)));
+        //generationThread.Start();
+    }
+
+    private Queue<MeshBuilder> builders = new Queue<MeshBuilder>();
     //[SerializeField] private Texture2D previewTex = new Texture2D(1024, 1024);
 
-    public Texture2D GenerateTerrain(Mesh mesh, Vector3 origin)
+    public void GenerateTerrain(Mesh mesh, Vector3 origin, GameObject g)
     {
-        MeshBuilder builder = new MeshBuilder();
-
+        MeshBuilder builder = new MeshBuilder(mesh);
+        builder.g = g;
         Vector3[] normal = new Vector3[4];
         Vector2[] uv = new Vector2[4];
         Vector3[] pos = new Vector3[4];
         int[] vertex = new int[4];
-        Dictionary<Vector2, float> perlin = new Dictionary<Vector2, float>();
+        Color[] perlin = new Color[(_triCount.x) * (_triCount.y)];
 
-        Texture2D chunktexture = new Texture2D(_triCount.x, _triCount.y);
+        builder.pixels = perlin;
 
         for (int y = 0; y < _triCount.y; y++)
         {
@@ -87,8 +182,8 @@ public class TerrainGenerator : MonoBehaviour
                     uv[i] = new Vector2(xValue / size.x, yValue/size.y);
                     
                     Profiler.BeginSample("Noise");
-                    pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin), yValue);
-                    chunktexture.SetPixel(x, y, gradient.Evaluate(GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin)/noiseValueMul));
+                    pos[i] = new Vector3(xValue, GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin, origin), yValue);
+                    //chunktexture.SetPixel(x, y, gradient.Evaluate(GetPerlinNoiseValue(origin.x +xValue, origin.z +yValue, perlin)/perlinLayers.Sum(e=>e.noiseValueMul)));
                     Profiler.EndSample();
                 }
                 
@@ -96,13 +191,13 @@ public class TerrainGenerator : MonoBehaviour
                 for (int i = 0; i < 6; i++)
                 {
                     
-                    var p = Vector3.Cross(pos[1+mod] - pos[0+mod], pos[2+mod] - pos[0+mod]);
+                    var p = Vector3.Cross(pos[1+mod] - pos[0+mod], pos[(2+mod)%4] - pos[0+mod]);
                     normal[0+mod] += p;
                     normal[1+mod] += p;
-                    normal[2+mod] += p;
+                    normal[(2+mod)%4] += p;
                     if (i == 3)
                     {
-                        mod++;
+                        mod+=2;
                     }
                 }
                 
@@ -137,14 +232,20 @@ public class TerrainGenerator : MonoBehaviour
             }
         }
 
+
+        lock (builders)
+        {
+            builders.Enqueue(builder);
+        }
         
-        builder.Build(mesh);
-        mesh.RecalculateNormals();
         //Debug.Log(chunktexture.height);
         //Debug.Log(chunktexture.GetPixel(10,10));
-        chunktexture.wrapMode = TextureWrapMode.Mirror;
-        chunktexture.Apply();
-        return chunktexture;
+        //chunktexture.wrapMode = TextureWrapMode.Mirror;
+        //chunktexture.Apply();
+        /*
+        
+        */
+        //return null;
         //.sharedMesh = mesh;
 
     }
@@ -170,24 +271,27 @@ public class TerrainGenerator : MonoBehaviour
         }
         threshold = false;
         //Debug.Log(result);
-        return 1f-(Mathf.Pow((result-thresholdValue)* (1/(1f-thresholdValue)) , 2)*15f);
+        return  Mathf.Max((result)*(1/(thresholdValue)), 0f);
+        //(Mathf.Pow((result-thresholdValue)* (1/(1f-thresholdValue)) , 2)*15f);
+
         
-        
-        
+
     }
     
-    private float GetPerlinNoiseValue(float x, float y, Dictionary<Vector2, float> perlin)
+    private float GetPerlinNoiseValue(float x, float y, Color[] perlin, Vector3 origins)
     {
+        /*
         if (perlin.TryGetValue(new Vector2(x,y), out float perlinvalue))
         {
             return perlinvalue;
         }
+        */
 
         float result = 1;
         int originalMod = perlinMod;
         foreach (var perlinData in perlinLayers)
         {
-            float perlinResult = GetPerlinNoiseValue(x, y, perlinData.noiseSizeMul, perlinData.subMaps, perlinMod,
+            float perlinResult = GetPerlinNoiseValue(x, y, perlinData.noiseSizeMul, perlinData.subMaps, originalMod,
                 perlinData.thresholdValue, out bool threshold);
             
             if (threshold )
@@ -207,11 +311,18 @@ public class TerrainGenerator : MonoBehaviour
                 //Mathf.Lerp(0f, perlinResult * noiseValueMul, perlinResult);
             }
             
-            perlinMod /= 2;
+            originalMod /= 2;
         }
 
-        perlinMod = originalMod;
-        perlin.Add(new Vector2(x,y), result);
+        
+        int xValue = (int) ((x - origins.x)*(1/quadSize.x));
+        int yValue = (int) ((y - origins.z)*(1/quadSize.y));
+        xValue = Math.Min(xValue, 19);
+        yValue = Math.Min(yValue, 19);
+        //Debug.Log(xValue+ "   "+ yValue);
+        perlin[xValue + yValue*_triCount.x] =  new Color((result/perlinLayers.Sum(e=>e.noiseValueMul+e.subMaps.Sum(f=>f.noiseValueMul))),0,0);
+        
+        //perlin.Add(new Vector2(x,y), result);
         
         return result;
     }

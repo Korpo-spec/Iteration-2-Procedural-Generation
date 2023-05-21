@@ -10,8 +10,14 @@ public class MeshBuilder
     private readonly List<int> triangles = new List<int>();
     public Matrix4x4 VertexMatrix = Matrix4x4.identity;
     public Matrix4x4 TextureMatrix = Matrix4x4.identity;
-    
-    
+    public Mesh mesh;
+    public Color[] pixels;
+    public GameObject g;
+
+    public MeshBuilder(Mesh meshToBuild)
+    {
+        mesh = meshToBuild;
+    }
     public void Build(Mesh mesh)
     {
         
@@ -31,7 +37,7 @@ public class MeshBuilder
         uv.Clear();
         triangles.Clear();
     }
-    public void Build(Mesh mesh, GameObject gameObject)
+    public void Build()
     {
         
         
@@ -45,10 +51,8 @@ public class MeshBuilder
         
         mesh.MarkModified();
         mesh.RecalculateTangents();
-        vertices.Clear();
-        normals.Clear();
-        uv.Clear();
-        triangles.Clear();
+        mesh.RecalculateNormals();
+        
     }
     public int AddVertex(Vector3 position, Vector3 normal, Vector2 uv) {
         int index = vertices.Count;

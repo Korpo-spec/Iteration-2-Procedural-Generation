@@ -12,6 +12,9 @@ public class ChunkLoader : MonoBehaviour
 
     private Dictionary<Vector2, GameObject> _loadedChunks;
 
+    public MeshCollider Collider;
+    public Material mat;
+
     private Vector2Int _minValue;
     private Vector2Int _maxValue;
 
@@ -62,10 +65,10 @@ public class ChunkLoader : MonoBehaviour
                 var g = Instantiate(chunk, new Vector3(j, 0, i), Quaternion.identity);
                 Mesh mesh = g.GetComponent<MeshFilter>().mesh;
                 
-                Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(j,0,i));
-                g.GetComponent<MeshCollider>().sharedMesh = mesh;
+                terrainGenerator.GenerateTerrainAsync(mesh, new Vector3(j,0,i), g);
                 
-                g.GetComponent<MeshRenderer>().material.mainTexture = tex;
+                
+                //g.GetComponent<MeshRenderer>().material.mainTexture = tex;
                 
                 
             }
@@ -79,9 +82,8 @@ public class ChunkLoader : MonoBehaviour
             var g = Instantiate(chunk, new Vector3(i, 0, rowNum), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
             
-            Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(i,0,rowNum));
-            g.GetComponent<MeshCollider>().sharedMesh = mesh;
-            g.GetComponent<MeshRenderer>().material.mainTexture = tex;
+            terrainGenerator.GenerateTerrainAsync(mesh, new Vector3(i,0,rowNum), g);
+            
         }
     }
 
@@ -92,9 +94,8 @@ public class ChunkLoader : MonoBehaviour
             var g = Instantiate(chunk, new Vector3(colNum, 0, i), Quaternion.identity);
             Mesh mesh = g.GetComponent<MeshFilter>().mesh;
             
-            Texture2D tex = terrainGenerator.GenerateTerrain(mesh, new Vector3(colNum,0,i));
-            g.GetComponent<MeshCollider>().sharedMesh = mesh;
-            g.GetComponent<MeshRenderer>().material.mainTexture = tex;
+            terrainGenerator.GenerateTerrainAsync(mesh, new Vector3(colNum,0,i), g);
+            
         }
     }
 

@@ -1,0 +1,72 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+RWTexture2D<float4> outputTexture;
+uniform int outputTextureSizeX;
+uniform int outputTextureSizeY;
+Texture2D<float4> inputTexture;
+Texture2DArray<float4> inputTextures;
+Texture2DArray<float4> inputTexturesNormals;
+StructuredBuffer<float> timeStamps;
+
+uniform int inputTextureSizeX;
+uniform int inputTextureSizeY;
+
+
+
+[numthreads(16,16,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+
+    uint startX = id.x * 16;
+    uint startY = id.y * 16;
+
+    float mult = inputTextureSizeX/256.0f;
+    
+    // Iterate through the pixels within this thread group
+    for (uint y = startY; y < startY + 16; y++)
+    {
+        for (uint x = startX; x < startX + 16; x++)
+        {
+            // Ensure we're within the texture bounds
+            float inputPixelValue = inputTexture[float2(x*mult,y*mult)].r*4;
+            
+            uint numstruct;
+            uint randomshit;
+            timeStamps.GetDimensions( numstruct, randomshit );
+            randomshit = numstruct-1;
+            for (uint z = 0; z < numstruct;z++)
+            {
+                if (inputPixelValue < timeStamps[z])
+                {
+                    randomshit = z-1;
+                    break;
+                }
+            }
+            
+            inputPixelValue = inputPixelValue - timeStamps[randomshit];
+            float timestampPlusOne = min(timeStamps[min(randomshit+1, numstruct-1)], 1.001f);
+            float timeStampNorm = inputPixelValue/(timestampPlusOne- timeStamps[randomshit]);
+
+            timeStampNorm+= 0;
+            timeStampNorm = max(timeStampNorm, 0.5f);
+            timeStampNorm -= 0.5;
+            timeStampNorm = max(timeStampNorm, 0.0f);
+            timeStampNorm *= 1/0.5f;
+            
+            timeStampNorm = min(timeStampNorm, 1.0f);
+            
+            
+            outputTexture[uint2(x,y)] = lerp(inputTextures[uint3(x*8,y*8, randomshit)], inputTextures[uint3(x*8,y*8, min(randomshit+1, numstruct-1))], timeStampNorm*1.0f );
+
+            //outputTexture[uint2(x,y)] = float4(timeStampNorm, 0,0,0);
+            //outputTexture[uint2(x,y)] = inputTextures[uint3(x*4,y*4, numstruct)];
+            //outputTexture[uint2(x,y)] = inputTexture[float2(x*mult,y*mult)].r;
+        }
+    }
+   
+    
+}
