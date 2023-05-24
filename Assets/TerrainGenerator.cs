@@ -26,7 +26,7 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField] private Texture2DArray texture2DArrayNormals;
     [SerializeField] private ComputeShader textureShader;
 
-    [SerializeField] private List<PerlinData> perlinLayers;
+    [SerializeField][NonReorderable] private List<PerlinData> perlinLayers;
     
     private int perlinMod = 100;
     private Vector2Int _triCount;
@@ -46,6 +46,7 @@ public class TerrainGenerator : MonoBehaviour
         chunkPerlinTexture = new Texture2D(_triCount.x, _triCount.y);
         builders = new Queue<MeshBuilder>();
         mainkernel = textureShader.FindKernel("CSMain");
+        Application.targetFrameRate = 60;
     }
 
     void Start()
@@ -109,8 +110,34 @@ public class TerrainGenerator : MonoBehaviour
                 textureShader.SetInt("inputTextureSizeX", _triCount.x);
                 textureShader.SetInt("inputTextureSizeY", _triCount.y);
                 Random.InitState(123);
-                //Instantiate(perlinLayers[0].gameObjects[SeededRandom(0, perlinLayers[0].gameObjects.Count, (int)(builder.g.transform.position.x * builder.g.transform.position.z))], new Vector3(builder.g.transform.position.x, Random.Range(20, 50), builder.g.transform.position.z),
-                    //Quaternion.identity);
+                Vector3 pos = builder.g.transform.position;
+                int seed = (int)(pos.x*3467 + pos.z * 44565);
+                float xValue = SeededRandom(0.0f, 10.0f, seed);
+                float zValue = SeededRandom(0.0f, 10.0f, seed);
+                pos.y = chunkPerlinTexture.GetPixel((int)xValue*2, (int)zValue*2).r *
+                        perlinLayers.Sum(e => e.noiseValueMul + e.subMaps.Sum(f => f.noiseValueMul));
+                
+                pos.x += xValue;
+                pos.z += zValue;
+                if (SeededRandom(0, 10, seed)>6f) 
+                {
+                    PerlinData gameObjectToInstantiate = perlinLayers[0];
+                    foreach (var layer in perlinLayers)
+                    {
+                        if (layer.thresholdValue != 0 && layer.thresholdValue < pos.y/perlinLayers.Sum(e => e.noiseValueMul))
+                        {
+                            gameObjectToInstantiate = layer;
+                        }
+                    
+                    
+                    }
+
+                    
+                    Instantiate(gameObjectToInstantiate.gameObjects[SeededRandom(0, gameObjectToInstantiate.gameObjects.Count, seed)], new Vector3(pos.x, pos.y, pos.z),
+                        Quaternion.identity);
+                }
+                
+                
                 
                 textureShader.SetTexture(mainkernel, "inputTextures", texture2DArray);
                 
