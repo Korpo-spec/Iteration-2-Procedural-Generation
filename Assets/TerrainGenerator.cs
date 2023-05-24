@@ -109,8 +109,8 @@ public class TerrainGenerator : MonoBehaviour
                 textureShader.SetInt("inputTextureSizeX", _triCount.x);
                 textureShader.SetInt("inputTextureSizeY", _triCount.y);
                 Random.InitState(123);
-                Instantiate(perlinLayers[0].gameObjects[SeededRandom(0, perlinLayers[0].gameObjects.Count, (int)(builder.g.transform.position.x * builder.g.transform.position.z))], new Vector3(builder.g.transform.position.x, Random.Range(20, 50), builder.g.transform.position.z),
-                    Quaternion.identity);
+                //Instantiate(perlinLayers[0].gameObjects[SeededRandom(0, perlinLayers[0].gameObjects.Count, (int)(builder.g.transform.position.x * builder.g.transform.position.z))], new Vector3(builder.g.transform.position.x, Random.Range(20, 50), builder.g.transform.position.z),
+                    //Quaternion.identity);
                 
                 textureShader.SetTexture(mainkernel, "inputTextures", texture2DArray);
                 
