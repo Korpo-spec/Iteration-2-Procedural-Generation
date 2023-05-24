@@ -10,7 +10,7 @@ public struct PerlinData
     [SerializeField] public float noiseValueMul;
     [SerializeField] public float noiseSizeMul;
     [SerializeField] public float thresholdValue;
-    [SerializeField] public List<PerlinDataChild> subMaps;
+    [SerializeField][NonReorderable] public List<PerlinData> subMaps;
     [SerializeField] public List<GameObject> gameObjects;
 
 }

@@ -21,9 +21,9 @@ public class TerrainGenerator : MonoBehaviour
     [SerializeField] private float noiseSizeMul;
     [SerializeField] private Gradient gradient;
     [SerializeField] private Texture2D[] textures;
-     private Texture2D[] normalMaps;
-    private Texture2DArray texture2DArray;
-    private Texture2DArray texture2DArrayNormals;
+    [SerializeField] private Texture2D[] normalMaps;
+     private Texture2DArray texture2DArray;
+    [SerializeField] private Texture2DArray texture2DArrayNormals;
     [SerializeField] private ComputeShader textureShader;
 
     [SerializeField][NonReorderable] private List<PerlinData> perlinLayers;
@@ -47,17 +47,10 @@ public class TerrainGenerator : MonoBehaviour
         builders = new Queue<MeshBuilder>();
         mainkernel = textureShader.FindKernel("CSMain");
         Application.targetFrameRate = 60;
-    }
-
-    void Start()
-    {
-        _terrain = GetComponent<MeshFilter>().mesh;
-        _collider = GetComponent<MeshCollider>();
-        
         
         texture2DArray =
             new Texture2DArray(2048, 2048, gradient.colorKeys.Length, TextureFormat.ARGB32, false);
-        //texture2DArrayNormals = new Texture2DArray(2048, 2048, gradient.colorKeys.Length, TextureFormat.ARGB32, false);
+        // //texture2DArrayNormals = new Texture2DArray(2048, 2048, gradient.colorKeys.Length, TextureFormat.ARGB32, false);
         for (int i = 0; i < gradient.colorKeys.Length; i++)
         {
             
@@ -67,8 +60,17 @@ public class TerrainGenerator : MonoBehaviour
             //texture2DArrayNormals.SetPixels(normalMaps[i]?.GetPixels(0), i);
         }
         
-        //texture2DArray.SetPixelData(textures[0].GetPixelData<Color>(0),0,0);
+        
         texture2DArray.Apply();
+    }
+
+    void Start()
+    {
+        _terrain = GetComponent<MeshFilter>().mesh;
+        _collider = GetComponent<MeshCollider>();
+        
+        
+        
         //GenerateTerrain(_terrain, Vector3.zero);
     }
 
@@ -90,7 +92,7 @@ public class TerrainGenerator : MonoBehaviour
             //texture2DArrayNormals.SetPixels(normalMaps[i]?.GetPixels(0), i);
         }
         
-        //texture2DArray.SetPixelData(textures[0].GetPixelData<Color>(0),0,0);
+        
         // texture2DArray.Apply();
         //texture2DArrayNormals.Apply();
         
@@ -289,7 +291,7 @@ public class TerrainGenerator : MonoBehaviour
 
     }
 
-    private float GetPerlinNoiseValue(float x, float y, float noiseSizeMul, List<PerlinDataChild> subMaps, float perlinMod, float thresholdValue, out bool threshold)
+    private float GetPerlinNoiseValue(float x, float y, float noiseSizeMul, List<PerlinData> subMaps, float perlinMod, float thresholdValue, out bool threshold)
     {
         float result = Mathf.PerlinNoise(perlinMod +x * noiseSizeMul, perlinMod +y * noiseSizeMul) ;
         if (thresholdValue <= result )
@@ -297,7 +299,7 @@ public class TerrainGenerator : MonoBehaviour
             threshold = true;
             foreach (var map in subMaps)
             {
-                result += GetPerlinNoiseValue(x, y, map.noiseSizeMul, null, perlinMod * 2.5f, map.thresholdValue, out _)*map.noiseValueMul*
+                result += GetPerlinNoiseValue(x, y, map.noiseSizeMul, map.subMaps, perlinMod * 2.5f, map.thresholdValue, out _)*map.noiseValueMul*
                           Mathf.Max(result-thresholdValue, 0f);
             }
             return result;
